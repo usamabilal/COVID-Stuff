@@ -4,6 +4,7 @@ library(data.table)
 library(tidycensus)
 library(readxl)
 library(broom)
+library(gridExtra)
 library(foreign)
 library(scales)
 options(scipen=999)
@@ -13,20 +14,20 @@ options(scipen=999)
 vars<-load_variables(year=2018, "acs5")
 # example:
 vars %>% filter(grepl("Insurance", concept, ignore.case=T))
-
 zipcode_data<-get_acs(geography = "zcta",
                       variables=c(
-                                  # median household income
-                                  "B19013_001",
-                                  # race/ethnicity
-                                  "B03002_001", 
-                                  "B03002_012", 
-                                  "B03002_004",
-                                  # limited english stuff
-                                  "C16002_001","C16002_004", "C16002_007", 
-                                  "C16002_010", "C16002_013",
-                                  # health insurance (uninsured)
-                                  "B27010_001","B27010_017", "B27010_033", "B27010_050", "B27010_066"), 
+                        # median household income
+                        "B19013_001",
+                        # race/ethnicity
+                        "B03002_001", 
+                        "B03002_012", 
+                        "B03002_004",
+                        # limited english stuff
+                        "C16002_001","C16002_004", "C16002_007", 
+                        "C16002_010", "C16002_013",
+                        # health insurance (uninsured)
+                        "B27010_001","B27010_017", "B27010_033", "B27010_050", "B27010_066"
+                      ),
                       year=2018) %>% 
   select(GEOID, variable, estimate) %>% 
   spread(variable, estimate) %>% 
@@ -43,8 +44,8 @@ zipcode_data<-get_acs(geography = "zcta",
          GEOID=as.numeric(GEOID)) %>% 
   select(GEOID, mhi, pct_hisp, pct_black, total_pop, total_hisp, total_black,limited_engl, no_healthins)
 # philly data, obtained from https://www.phila.gov/programs/coronavirus-disease-2019-covid-19/the-citys-response/monitoring-and-testing/
-# open map in tableau, click on download crosstab 
-map<-read_excel("Philly/Mapping_crosstab.xlsx") %>% 
+# new data from April 1st
+map<-read_excel("Philly/Mapping_crosstab 040120.xlsx") %>% 
   # renaming zipcode identifier to GEOID
   rename(GEOID=ZIP,
          all=`All Tests along`, 
@@ -63,13 +64,12 @@ both<-left_join(map, zipcode_data) %>%
          positives_pc=positives/total_pop*1000) 
 
 # MHI plot
-ggplot(both, aes(x=mhi, y=tests_pc)) +
+p1<-ggplot(both, aes(x=mhi, y=tests_pc)) +
   stat_smooth(method="loess")+
   geom_point()+
-  scale_x_log10(limits=c(15000, 120000),
-                breaks=c(10000, 20000, 30000, 40000,
+  scale_x_log10(breaks=c(20000, 30000, 40000,
                          50000, 70000, 100000))+
-  scale_y_continuous(limits=c(0, 15))+
+  scale_y_continuous(limits=c(0, NA))+
   annotation_logticks(sides="b")+
   theme_bw() +
   labs(x="Median Household Income (2014-2018)",
@@ -78,24 +78,10 @@ ggplot(both, aes(x=mhi, y=tests_pc)) +
        caption="Source: PDPH and 5-year ACS. Blue line is a loess smoother")+
   theme(axis.text=element_text(color="black"))
 
-# MHI and % positive
-ggplot(both, aes(x=mhi, y=pct_pos)) +
-  stat_smooth(method="loess")+
-  geom_point()+
-  scale_x_log10(limits=c(15000, 120000),
-                breaks=c(10000, 20000, 30000, 40000,
-                         50000, 70000, 100000))+
-  scale_y_continuous(limits=c(0, .4), labels=percent)+
-  annotation_logticks(sides="b")+
-  theme_bw() +
-  labs(x="Median Household Income (2014-2018)",
-       y="% positive tests",
-       title="",
-       caption="Source: PDPH and 5-year ACS. Blue line is a loess smoother")+
-  theme(axis.text=element_text(color="black"))
 
-# % Black and tests
-ggplot(both, aes(x=pct_black, y=tests_pc)) +
+
+# % Black
+p2<-ggplot(both, aes(x=pct_black, y=tests_pc)) +
   #stat_smooth(method="loess")+
   # annotate("rect", xmin=0, xmax=.20, ymin=0, ymax=15,
   #          alpha=0.3, color="gray")+
@@ -105,19 +91,18 @@ ggplot(both, aes(x=pct_black, y=tests_pc)) +
   # scale_x_log10(limits=c(15000, 120000),
   #               breaks=c(10000, 20000, 30000, 40000,
   #                        50000, 70000, 100000))+
-  scale_y_continuous(limits=c(0, 15))+
+  scale_y_continuous(limits=c(0, NA))+
   scale_x_continuous(limits=c(0, 1), labels=percent)+
   #annotation_logticks(sides="b")+
   theme_bw() +
   labs(x="% non-Hispanic Black (2014-2018)",
        y="Tests conducted per 1000 people",
        title="Number of total tests per Zipcode in Philadelphia",
-       caption="Source: PDPH and 5-year ACS. Blue line is a loess smoother")+
+       caption="Source: PDPH and 5-year ACS")+
   theme(axis.text=element_text(color="black"))
-both %>% filter(pct_black>=.25, tests_pc>=10)
 
 # % Hispanic and tests
-ggplot(both, aes(x=pct_hisp, y=tests_pc)) +
+p3<-ggplot(both, aes(x=pct_hisp, y=tests_pc)) +
   #stat_smooth(method="loess")+
   # annotate("rect", xmin=0, xmax=.20, ymin=0, ymax=15,
   #          alpha=0.3, color="gray")+
@@ -127,7 +112,7 @@ ggplot(both, aes(x=pct_hisp, y=tests_pc)) +
   # scale_x_log10(limits=c(15000, 120000),
   #               breaks=c(10000, 20000, 30000, 40000,
   #                        50000, 70000, 100000))+
-  scale_y_continuous(limits=c(0, 15))+
+  scale_y_continuous(limits=c(0, NA))+
   scale_x_continuous(limits=c(0, .6), labels=percent)+
   #annotation_logticks(sides="b")+
   theme_bw() +
@@ -138,7 +123,7 @@ ggplot(both, aes(x=pct_hisp, y=tests_pc)) +
   theme(axis.text=element_text(color="black"))
 
 # Limited english proficiency
-ggplot(both, aes(x=limited_engl, y=tests_pc)) +
+p4<-ggplot(both, aes(x=limited_engl, y=tests_pc)) +
   #stat_smooth(method="loess")+
   # annotate("rect", xmin=0, xmax=.20, ymin=0, ymax=15,
   #          alpha=0.3, color="gray")+
@@ -148,7 +133,7 @@ ggplot(both, aes(x=limited_engl, y=tests_pc)) +
   # scale_x_log10(limits=c(15000, 120000),
   #               breaks=c(10000, 20000, 30000, 40000,
   #                        50000, 70000, 100000))+
-  scale_y_continuous(limits=c(0, 15))+
+  scale_y_continuous(limits=c(0, NA))+
   scale_x_continuous(limits=c(0, .3), labels=percent)+
   #annotation_logticks(sides="b")+
   theme_bw() +
@@ -159,14 +144,15 @@ ggplot(both, aes(x=limited_engl, y=tests_pc)) +
   theme(axis.text=element_text(color="black"))
 
 # health insurance
-ggplot(both, aes(x=no_healthins, y=tests_pc)) +
+p5<-ggplot(both, aes(x=no_healthins, y=tests_pc)) +
   stat_smooth(method="loess")+
   geom_point()+
   # scale_x_log10(limits=c(15000, 120000),
   #               breaks=c(10000, 20000, 30000, 40000,
   #                        50000, 70000, 100000))+
   #annotation_logticks(sides="b")+
-  scale_y_continuous(limits=c(0, 15))+
+  scale_y_continuous(limits=c(0, NA)) +
+  scale_x_continuous(labels=percent)+
   theme_bw() +
   labs(x="% with no Health Insurance (2014-2018)",
        y="Tests conducted per 1000 people",
@@ -174,4 +160,28 @@ ggplot(both, aes(x=no_healthins, y=tests_pc)) +
        caption="Source: PDPH and 5-year ACS. Blue line is a loess smoother")+
   theme(axis.text=element_text(color="black"))
 
+# and just testing a predictive model
+model<-lm(log(tests_pc)~log(mhi)+I(no_healthins*20)+I(pct_black*20)+I(pct_hisp*20)+I(limited_engl*20), 
+   data=both) %>% 
+  summary %>% tidy %>% 
+  mutate(lci=estimate-1.96*std.error,
+         uci=estimate+1.96*std.error) %>% 
+  mutate(estimate=ifelse(term=="log(mhi)", exp(estimate)-1, estimate)*100,
+         lci=ifelse(term=="log(mhi)", exp(lci)-1, lci)*100,
+         uci=ifelse(term=="log(mhi)", exp(uci)-1, uci)*100) %>% 
+  filter(term!="(Intercept)") %>% 
+  mutate(coef=paste0(round(estimate, digits=1), "%", " (",
+                     round(lci, digits=1), "%", ";",
+                     round(uci, digits=1), "%", ")")) %>% 
+  mutate(variable=case_when(
+    grepl("mhi", term) ~ "Median Household Income (1% increase)",
+    grepl("engl", term) ~ "% HH with Limited English Proficiency (1% increase)",
+    grepl("health", term) ~ "% Uninsured (5% increase)",
+    grepl("black", term) ~ "% Black (5% increase)",
+    grepl("hisp", term) ~ "% Hispanic (5% increase)",
+  )) %>% 
+  select(variable, coef)
 
+pall<-arrangeGrob(grobs=list(p1, p2, p3, p4, p5, tableGrob(model, rows = NULL)),
+            ncol=3)
+ggsave("Philly/all_plots.pdf", pall, width=20, height=12.5)
