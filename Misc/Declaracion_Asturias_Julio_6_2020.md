@@ -1,3 +1,5 @@
+[PDF Aquí](https://github.com/usamabilal/COVID-Stuff/raw/master/Misc/Declaracion_Asturias.pdf)
+
 # Introducción
 
 Muchas gracias por la invitación para comparecer como parte de esta comisión especial. Mi nombre es Usama Bilal Álvarez, gijonés de nacimiento, y actualmente profesor de epidemiología y salud urbana en la universidad Drexel de Filadelfia, Estados Unidos. Según la organización mundial de la salud, la epidemiología es el estudio de la distribución y los determinantes de estados relacionados con la salud y la aplicación de esos estudios al control de enfermedades. En estos 15 minutos quiero hacer un repaso de estos tres elementos en lo que concierne al coronavirus.
